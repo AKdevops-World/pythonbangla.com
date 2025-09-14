@@ -1,6 +1,6 @@
 # Start with a base Python image.
 # Using a "slim" image is good practice for smaller images.
-FROM python:3.6-slim
+FROM python:3.13-slim
 
 # Set the working directory in the container
 WORKDIR /app
