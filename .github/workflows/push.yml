@@ -1,0 +1,44 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "master" ]
+
+# A workflow run is made up of one or more jobs.
+# Jobs are executed in parallel by default.
+jobs:
+  build:
+    # The type of runner that the job will run on.
+    runs-on: ubuntu-latest
+    
+    # Steps represent a sequence of tasks that will be executed as part of the job.
+    steps:
+      # Step 1: Checkout the source code from your repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Docker Buildx for multi-platform builds (recommended)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Log in to the Quay.io container registry
+      # This uses the official docker/login-action to authenticate.
+      # The credentials are provided from the GitHub Secrets you've already created.
+      - name: Log in to the Quay.io registry
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      # Step 4: Build and push the Docker image
+      # This uses the official docker/build-push-action to build the image and push it
+      # to the Quay.io registry.
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # The path to the build context, in this case, the root of the repo
+          push: true
+          tags: |
+            quay.io/demoak93/pythonapp:${{ github.sha }}
+            quay.io/demoak93/pythonapp:latest
