@@ -1,50 +1,35 @@
-# Stage 1: Build the application dependencies
-# Use a more recent and supported Python base image
-FROM python:3.12-slim AS build
+# Start with a base Python image.
+# Using a "slim" image is good practice for smaller images.
+FROM python:3.6-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Set the working directory in the container
+WORKDIR /app
 
-# Install the PostgreSQL client development libraries
-# This step is crucial for building psycopg2 from source
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
-    gcc \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# (Optional) You can remove this step now
+# The psycopg2-binary package doesn't require these dependencies.
+# This makes your image smaller and your build faster.
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     libpq-dev \
+#     gcc \
+#     && apt-get clean \
+#     && rm -rf /var/lib/apt/lists/*
 
 # Install pipenv
 RUN pip install pipenv
 
-# Set the working directory
-WORKDIR /app
+# Copy Pipfile and Pipfile.lock to the working directory
+COPY Pipfile Pipfile.lock ./
 
-# Copy Pipfile and Pipfile.lock
-COPY Pipfile Pipfile.lock /app/
+# Install project dependencies from Pipfile.lock
+# This ensures a deterministic and repeatable build.
+RUN pipenv install --deploy --system
 
-# Install project dependencies
-RUN pipenv install --system --deploy --ignore-pipfile
+# Copy the rest of the application code into the container
+COPY . .
 
-# Stage 2: Create the final, smaller runtime image
-# Use the same base image as the build stage for consistency and ease of maintenance
-FROM python:3.12-slim
-
-# Set the working directory
-WORKDIR /app
-
-# Copy the dependencies from the build stage
-COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=build /usr/local/bin/gunicorn /usr/local/bin/gunicorn
-
-# Copy the application code
-COPY . /app/
-
-# Expose the port
+# Expose the port the application runs on
 EXPOSE 8000
 
-# Collect static files (if your Django project uses them)
-RUN python3 manage.py collectstatic --noinput
-
-# Start the application with a production-ready server like Gunicorn
-CMD ["gunicorn", "pythonbangla_project.wsgi", "--bind", "0.0.0.0:8000", "--log-file", "-"]
+# Command to run the application
+# Replace `python your_app_name.py` with your actual startup command.
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
