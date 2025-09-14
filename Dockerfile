@@ -2,16 +2,15 @@
 # Use a Python base image with a specific version
 FROM python:3.10-slim-buster AS build
 
-# Set environment variables for the build process
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # Install pipenv and the PostgreSQL client development libraries
-# This is the crucial fix for the "pg_config not found" error
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       postgresql-client \
-       libpq-dev \
+# This step is crucial for building psycopg2 from source
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    gcc \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -21,10 +20,10 @@ RUN pip install pipenv
 # Set the working directory
 WORKDIR /app
 
-# Copy Pipfile and Pipfile.lock to the container
+# Copy Pipfile and Pipfile.lock
 COPY Pipfile Pipfile.lock /app/
 
-# Install project dependencies into a virtual environment
+# Install project dependencies
 RUN pipenv install --system --deploy --ignore-pipfile
 
 # Stage 2: Create the final, smaller runtime image
@@ -35,16 +34,15 @@ WORKDIR /app
 
 # Copy the dependencies from the build stage
 COPY --from=build /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=build /usr/local/bin/gunicorn /usr/local/bin/gunicorn
 
-# Copy the entire project code into the container
+# Copy the application code
 COPY . /app/
 
-# Expose the port on which the application will run
+# Expose the port
 EXPOSE 8000
 
-# Collect static files
+# Collect static files (if your Django project uses them)
 RUN python3 manage.py collectstatic --noinput
 
-# Define the command to run the application using Gunicorn
+# Start the application with a production-ready server like Gunicorn
 CMD ["gunicorn", "pythonbangla_project.wsgi", "--bind", "0.0.0.0:8000", "--log-file", "-"]
