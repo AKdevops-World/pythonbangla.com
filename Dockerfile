@@ -1,12 +1,12 @@
 # Stage 1: Build the application dependencies
-# Use a Python base image with a specific version
-FROM python:3.10-slim-buster AS build
+# Use a more recent and supported Python base image
+FROM python:3.12-slim AS build
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Install pipenv and the PostgreSQL client development libraries
+# Install the PostgreSQL client development libraries
 # This step is crucial for building psycopg2 from source
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
@@ -27,13 +27,15 @@ COPY Pipfile Pipfile.lock /app/
 RUN pipenv install --system --deploy --ignore-pipfile
 
 # Stage 2: Create the final, smaller runtime image
-FROM python:3.10-slim-buster
+# Use the same base image as the build stage for consistency and ease of maintenance
+FROM python:3.12-slim
 
 # Set the working directory
 WORKDIR /app
 
 # Copy the dependencies from the build stage
-COPY --from=build /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=build /usr/local/bin/gunicorn /usr/local/bin/gunicorn
 
 # Copy the application code
 COPY . /app/
